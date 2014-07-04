@@ -1,15 +1,19 @@
 # Get Accepted Domains 
 get-accepteddomain|fl domainname > C:\temp\Exch-AcceptedDomains.txt 
 
-#Do a whois of each domain, exclude anything with .local
-$domain = get-AcceptedDomain |% {$_.domainname.domain}
-$domain = $domain | ? { $_ -notlike "*.local*"}
 
-foreach($domain in $domain){
-$web = New-WebServiceProxy ‘http://www.webservicex.net/whois.asmx?WSDL’  #Powershell 4.0 only
-$whois= $web.GetWhoIs($domain) 
-$whois.Substring(0,$whois.IndexOf(">>>"))  # Removes extra fluff from whois record
+if ($host.version.major -ge 4) { #Powershell 4.0 only
+    #Do a whois of each domain, exclude anything with .local
+    $domain = get-AcceptedDomain |% {$_.domainname.domain}
+    $domain = $domain | ? { $_ -notlike "*.local*"}
+
+    foreach($domain in $domain){
+    $web = New-WebServiceProxy ‘http://www.webservicex.net/whois.asmx?WSDL’  
+    $whois= $web.GetWhoIs($domain) 
+    $whois.Substring(0,$whois.IndexOf(">>>"))  # Removes extra fluff from whois record
+    }
 }
+else { write-host "New-WebServiceProxy does not support <4 " }
 
 #Get a list of Mailboxes and their sizes
 Get-MailboxStatistics | where {$_.ObjectClass -eq "Mailbox"} | Sort-Object DisplayName | ft @{label="User";expression={$_.DisplayName}},@{label="Total Size (MB)";expression={$_.TotalItemSize.Value.ToMB()}},@{label="Items";expression={$_.ItemCount}},@{label="Storage Limit";expression={$_.StorageLimitStatus}} -auto
